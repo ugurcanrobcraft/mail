@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BytePost - Gmail Style Webmail</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-[#0f172a] text-slate-100 font-sans h-screen flex flex-col overflow-hidden select-none">
+
+    <!-- Cloudflare Worker API URL -->
+    <script>
+        const API_URL = 'https://bytepost-api.ugurqeribli1.workers.dev'; 
+    </script>
+
+    <!-- Top Navigation -->
+    <header class="h-16 border-b border-slate-800 bg-[#1e293b]/50 backdrop-blur px-4 flex items-center justify-between shrink-0">
+        <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-2">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center font-black text-xl text-white shadow-lg shadow-indigo-500/30">
+                    BP
+                </div>
+                <span class="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">BytePost</span>
+            </div>
+        </div>
+
+        <div class="flex-1 max-w-2xl mx-8 hidden md:block">
+            <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-slate-400"></i>
+                <input type="text" id="searchInput" oninput="renderMailList()" placeholder="Postalarda arayın..." class="w-full bg-slate-900/80 border border-slate-800 rounded-2xl pl-11 pr-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 text-slate-200 placeholder-slate-500 transition">
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-3" id="userHeaderProfile"></div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="flex flex-1 overflow-hidden relative">
+        <aside class="w-64 bg-[#1e293b]/30 border-r border-slate-800/80 p-4 flex flex-col justify-between shrink-0">
+            <div class="space-y-4">
+                <button onclick="openComposeModal()" class="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold py-3 px-5 rounded-2xl transition shadow-lg shadow-indigo-600/25 flex items-center justify-center space-x-3">
+                    <i class="fa-solid fa-pen text-sm"></i>
+                    <span>Yeni İleti</span>
+                </button>
+
+                <nav class="space-y-1">
+                    <button onclick="switchTab('inbox')" id="tab-inbox" class="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-indigo-600/15 text-indigo-400 font-medium text-sm transition">
+                        <div class="flex items-center space-x-3">
+                            <i class="fa-solid fa-inbox text-base"></i>
+                            <span>Gelen Kutusu</span>
+                        </div>
+                        <span id="inboxCount" class="bg-indigo-600 text-white text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+                    </button>
+
+                    <button onclick="switchTab('sent')" id="tab-sent" class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 font-medium text-sm transition">
+                        <div class="flex items-center space-x-3">
+                            <i class="fa-solid fa-paper-plane text-base"></i>
+                            <span>Gönderilenler</span>
+                        </div>
+                        <span id="sentCount" class="text-xs font-semibold text-slate-500">0</span>
+                    </button>
+                </nav>
+            </div>
+
+            <div class="border-t border-slate-800/60 pt-4 text-xs text-slate-500 flex flex-col space-y-1">
+                <span class="font-semibold text-slate-400">BytePost Cloud</span>
+                <span>Domain: @byte.post</span>
+                <span class="text-[10px] text-emerald-400">● MongoDB Atlas Aktif</span>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col bg-[#0f172a] overflow-hidden relative">
+            <div id="mailListView" class="flex-1 flex flex-col overflow-y-auto p-4 space-y-2">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-800 px-2">
+                    <h2 id="currentTabTitle" class="text-lg font-bold text-slate-200">Gelen Kutusu</h2>
+                    <button onclick="loadMailsFromDB()" class="text-xs text-slate-400 hover:text-indigo-400 flex items-center space-x-1">
+                        <i class="fa-solid fa-rotate-right"></i>
+                        <span>Yenile</span>
+                    </button>
+                </div>
+                <div id="mailItemsContainer" class="space-y-2 pt-2"></div>
+            </div>
+
+            <!-- Mail Detail View -->
+            <div id="mailDetailView" class="hidden absolute inset-0 bg-[#0f172a] p-6 flex-col overflow-y-auto z-10">
+                <div class="flex items-center space-x-4 mb-6 border-b border-slate-800 pb-4">
+                    <button onclick="closeMailDetail()" class="p-2 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition">
+                        <i class="fa-solid fa-arrow-left text-lg"></i>
+                    </button>
+                    <h2 id="detailSubject" class="text-xl font-bold text-white flex-1 truncate">Mail Başlığı</h2>
+                </div>
+
+                <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 space-y-6">
+                    <div class="flex items-start justify-between border-b border-slate-800/80 pb-4">
+                        <div class="flex items-center space-x-3">
+                            <div id="detailAvatar" class="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center font-bold text-lg text-white shadow-md">U</div>
+                            <div>
+                                <h3 id="detailSender" class="font-bold text-slate-100">sender@byte.post</h3>
+                                <p id="detailRecipient" class="text-xs text-slate-400">Kime: receiver@byte.post</p>
+                            </div>
+                        </div>
+                        <span id="detailDate" class="text-xs text-slate-500 font-medium">12:00</span>
+                    </div>
+
+                    <div id="detailBody" class="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap py-2 min-h-[120px]"></div>
+
+                    <div id="detailButtonContainer" class="hidden pt-4 border-t border-slate-800/80">
+                        <a id="detailActionBtn" href="#" target="_blank" class="inline-flex items-center space-x-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold px-6 py-3 rounded-xl transition shadow-lg shadow-indigo-600/30">
+                            <span id="detailBtnText">Buton İsmi</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- COMPOSE MODAL -->
+    <div id="composeModal" class="hidden fixed bottom-4 right-4 w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col">
+        <div class="bg-slate-800/80 px-4 py-3 flex justify-between items-center border-b border-slate-700/50">
+            <span class="font-bold text-sm text-slate-200">Yeni İleti Oluştur</span>
+            <button onclick="closeComposeModal()" class="text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark text-base"></i></button>
+        </div>
+        <div class="p-4 space-y-3">
+            <div>
+                <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Gönderilecek Mail (Alıcı)*</label>
+                <input type="text" id="composeTo" placeholder="ornek@byte.post" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+            </div>
+            <div>
+                <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Başlık (Konu)*</label>
+                <input type="text" id="composeSubject" placeholder="Mail konusunu yazın" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+            </div>
+            <div>
+                <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Açıklama (Mesaj)*</label>
+                <textarea id="composeBody" rows="4" placeholder="Mesajınızı yazın..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+            </div>
+            <div class="border-t border-slate-800 pt-3">
+                <span class="text-xs font-semibold text-indigo-400 block mb-2"><i class="fa-solid fa-link mr-1"></i> Opsiyonel Buton Ekle (İkisi de doldurulmalı!)</span>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="composeBtnName" placeholder="Buton İsmi" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
+                    <input type="url" id="composeBtnLink" placeholder="https://link.com" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
+                </div>
+            </div>
+            <div class="flex justify-end pt-2">
+                <button onclick="handleSendMail()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition shadow-lg shadow-indigo-600/20 flex items-center space-x-2">
+                    <span>Gönder</span>
+                    <i class="fa-solid fa-paper-plane text-xs"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ACCOUNT CREATION MODAL -->
+    <div id="accountModal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-8 shadow-2xl relative">
+            <div class="text-center space-y-2 mb-6">
+                <div class="w-14 h-14 bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 rounded-2xl flex items-center justify-center mx-auto text-2xl font-bold">BP</div>
+                <h2 class="text-2xl font-bold text-white">BytePost Hesabı Oluştur</h2>
+                <p class="text-xs text-slate-400">Verileriniz MongoDB Bulut sunucusunda saklanır.</p>
+            </div>
+
+            <form onsubmit="handleCreateAccount(event)" class="space-y-4">
+                <div>
+                    <label class="text-xs font-semibold text-slate-300 block mb-1">Mail Adresi*</label>
+                    <div class="relative flex items-center">
+                        <input type="text" id="regMailName" required placeholder="kullanici" class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3.5 pr-28 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+                        <span class="absolute right-3 text-xs font-bold text-indigo-400">@byte.post</span>
+                    </div>
+                    <p class="text-[10px] text-slate-500 mt-1">Sadece küçük İngilizce harf (a-z), 0-9, _ ve . kullanılabilir.</p>
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-slate-300 block mb-1">Şifre*</label>
+                    <input type="password" id="regPassword" required placeholder="••••••••" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-indigo-600/30 text-sm">
+                    Hesabı Oluştur ve Giriş Yap
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        const CURRENT_USER_KEY = 'bytepost_current_user_cloud';
+        let activeTab = 'inbox';
+        let cachedMails = { inbox: [], sent: [] };
+
+        window.onload = function() {
+            initSystem();
+        };
+
+        function getCurrentUser() {
+            return JSON.parse(localStorage.getItem(CURRENT_USER_KEY) || 'null');
+        }
+
+        function setCurrentUser(user) {
+            localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+        }
+
+        async function initSystem() {
+            const currentUser = getCurrentUser();
+            if (!currentUser) {
+                document.getElementById('accountModal').classList.remove('hidden');
+            } else {
+                document.getElementById('accountModal').classList.add('hidden');
+                updateUserHeader(currentUser);
+                await loadMailsFromDB();
+            }
+        }
+
+        function updateUserHeader(user) {
+            document.getElementById('userHeaderProfile').innerHTML = `
+                <div class="text-right hidden sm:block">
+                    <div class="text-xs font-bold text-slate-200">${user.email}</div>
+                    <div class="text-[10px] text-emerald-400">● MongoDB Bağlı</div>
+                </div>
+                <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white shadow-md">
+                    ${user.username.charAt(0).toUpperCase()}
+                </div>
+            `;
+        }
+
+        // Account Registration
+        async function handleCreateAccount(e) {
+            e.preventDefault();
+            const rawName = document.getElementById('regMailName').value.trim();
+            const password = document.getElementById('regPassword').value;
+
+            const mailRegex = /^[a-z0-9_.]+$/;
+            if (!mailRegex.test(rawName)) {
+                alert("Hata: Mail isminde sadece küçük İngilizce harfler (a-z), 0-9, '_' ve '.' kullanılabilir!");
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/api/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: rawName, password })
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    alert(data.message || "Kayıt başarısız oldu.");
+                    return;
+                }
+
+                setCurrentUser(data.user);
+                document.getElementById('accountModal').classList.add('hidden');
+                updateUserHeader(data.user);
+                alert(`Tebrikler! ${data.user.email} adresiniz MongoDB'ye kaydedildi.`);
+                await loadMailsFromDB();
+            } catch (err) {
+                alert("Bağlantı hatası: " + err.message);
+            }
+        }
+
+        // Fetch Mails from MongoDB via Worker
+        async function loadMailsFromDB() {
+            const currentUser = getCurrentUser();
+            if (!currentUser) return;
+
+            try {
+                const res = await fetch(`${API_URL}/api/mails?email=${encodeURIComponent(currentUser.email)}`);
+                const data = await res.json();
+
+                if (data.success) {
+                    cachedMails.inbox = data.inbox;
+                    cachedMails.sent = data.sent;
+                    renderMailList();
+                }
+            } catch (err) {
+                console.error("Mailler yüklenemedi:", err);
+            }
+        }
+
+        function switchTab(tab) {
+            activeTab = tab;
+            const inboxBtn = document.getElementById('tab-inbox');
+            const sentBtn = document.getElementById('tab-sent');
+            const title = document.getElementById('currentTabTitle');
+
+            if (tab === 'inbox') {
+                inboxBtn.className = "w-full flex items-center justify-between px-4 py-3 rounded-xl bg-indigo-600/15 text-indigo-400 font-medium text-sm transition";
+                sentBtn.className = "w-full flex items-center justify-between px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 font-medium text-sm transition";
+                title.innerText = "Gelen Kutusu";
+            } else {
+                sentBtn.className = "w-full flex items-center justify-between px-4 py-3 rounded-xl bg-indigo-600/15 text-indigo-400 font-medium text-sm transition";
+                inboxBtn.className = "w-full flex items-center justify-between px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 font-medium text-sm transition";
+                title.innerText = "Gönderilenler";
+            }
+
+            closeMailDetail();
+            renderMailList();
+        }
+
+        function renderMailList() {
+            const searchQuery = document.getElementById('searchInput').value.toLowerCase();
+            let mails = activeTab === 'inbox' ? cachedMails.inbox : cachedMails.sent;
+
+            if (searchQuery) {
+                mails = mails.filter(m => 
+                    m.subject.toLowerCase().includes(searchQuery) || 
+                    m.body.toLowerCase().includes(searchQuery) ||
+                    m.from.toLowerCase().includes(searchQuery) ||
+                    m.to.toLowerCase().includes(searchQuery)
+                );
+            }
+
+            document.getElementById('inboxCount').innerText = cachedMails.inbox.length;
+            document.getElementById('sentCount').innerText = cachedMails.sent.length;
+
+            const container = document.getElementById('mailItemsContainer');
+            container.innerHTML = '';
+
+            if (mails.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-16 text-slate-500">
+                        <i class="fa-regular fa-envelope-open text-4xl mb-3 block opacity-40"></i>
+                        <p class="text-sm">Henüz posta bulunmuyor.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            mails.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            mails.forEach(mail => {
+                const mailCard = document.createElement('div');
+                mailCard.className = "bg-slate-900/70 border border-slate-800/80 hover:border-indigo-500/50 p-4 rounded-2xl cursor-pointer transition flex items-center justify-between group";
+                mailCard.onclick = () => openMailDetail(mail);
+
+                const displayAddress = activeTab === 'inbox' ? mail.from : `Kime: ${mail.to}`;
+                const initial = displayAddress.charAt(0).toUpperCase();
+
+                mailCard.innerHTML = `
+                    <div class="flex items-center space-x-4 flex-1 truncate pr-4">
+                        <div class="w-10 h-10 rounded-xl bg-slate-800 group-hover:bg-indigo-600 flex items-center justify-center font-bold text-indigo-400 group-hover:text-white transition shrink-0">
+                            ${initial}
+                        </div>
+                        <div class="truncate flex-1">
+                            <div class="flex items-center space-x-2">
+                                <h4 class="font-semibold text-slate-200 text-sm truncate">${displayAddress}</h4>
+                                ${mail.btnName ? '<span class="bg-indigo-500/20 text-indigo-400 text-[10px] px-2 py-0.5 rounded-md border border-indigo-500/30">Butonlu</span>' : ''}
+                            </div>
+                            <p class="text-xs text-slate-400 truncate mt-0.5">
+                                <strong class="text-slate-300">${mail.subject}</strong> - ${mail.body}
+                            </p>
+                        </div>
+                    </div>
+                    <span class="text-[11px] text-slate-500 shrink-0 font-medium">${formatDate(mail.date)}</span>
+                `;
+                container.appendChild(mailCard);
+            });
+        }
+
+        function openMailDetail(mail) {
+            document.getElementById('mailDetailView').classList.remove('hidden');
+            document.getElementById('mailDetailView').classList.add('flex');
+
+            document.getElementById('detailSubject').innerText = mail.subject;
+            document.getElementById('detailSender').innerText = mail.from;
+            document.getElementById('detailRecipient').innerText = `Kime: ${mail.to}`;
+            document.getElementById('detailDate').innerText = formatDate(mail.date);
+            document.getElementById('detailBody').innerText = mail.body;
+            document.getElementById('detailAvatar').innerText = mail.from.charAt(0).toUpperCase();
+
+            const btnContainer = document.getElementById('detailButtonContainer');
+            if (mail.btnName && mail.btnLink) {
+                btnContainer.classList.remove('hidden');
+                document.getElementById('detailBtnText').innerText = mail.btnName;
+                document.getElementById('detailActionBtn').href = mail.btnLink;
+            } else {
+                btnContainer.classList.add('hidden');
+            }
+        }
+
+        function closeMailDetail() {
+            document.getElementById('mailDetailView').classList.add('hidden');
+            document.getElementById('mailDetailView').classList.remove('flex');
+        }
+
+        function openComposeModal() { document.getElementById('composeModal').classList.remove('hidden'); }
+        function closeComposeModal() { document.getElementById('composeModal').classList.add('hidden'); }
+
+        // Send Mail
+        async function handleSendMail() {
+            const currentUser = getCurrentUser();
+            if (!currentUser) return;
+
+            const recipient = document.getElementById('composeTo').value.trim();
+            const subject = document.getElementById('composeSubject').value.trim();
+            const body = document.getElementById('composeBody').value.trim();
+            const btnName = document.getElementById('composeBtnName').value.trim();
+            const btnLink = document.getElementById('composeBtnLink').value.trim();
+
+            if (!recipient || !subject || !body) {
+                alert("Hata: Gönderilecek Mail, Başlık ve Açıklama alanları zorunludur!");
+                return;
+            }
+
+            if ((btnName && !btnLink) || (!btnName && btnLink)) {
+                alert("Hata: Buton eklemek istiyorsanız hem 'Buton İsmi' hem de 'Buton Linki' doldurulmalıdır!");
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/api/send`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        from: currentUser.email,
+                        to: recipient,
+                        subject,
+                        body,
+                        btnName,
+                        btnLink
+                    })
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    alert(data.message || "Mail gönderilemedi.");
+                    return;
+                }
+
+                document.getElementById('composeTo').value = '';
+                document.getElementById('composeSubject').value = '';
+                document.getElementById('composeBody').value = '';
+                document.getElementById('composeBtnName').value = '';
+                document.getElementById('composeBtnLink').value = '';
+
+                closeComposeModal();
+                alert("Mail başarıyla gönderildi ve MongoDB'ye kaydedildi!");
+                await loadMailsFromDB();
+            } catch (err) {
+                alert("Hata: " + err.message);
+            }
+        }
+
+        function formatDate(isoString) {
+            const d = new Date(isoString);
+            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' - ' + d.toLocaleDateString();
+        }
+    </script>
+</body>
+</html>
