@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BytePost - Gmail Style Webmail</title>
+    <title>BytePost - WebMail Platformu</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 </head>
@@ -66,7 +66,7 @@
             <div class="border-t border-slate-800/60 pt-4 text-xs text-slate-500 flex flex-col space-y-1">
                 <span class="font-semibold text-slate-400">BytePost Cloud</span>
                 <span>Domain: @byte.post</span>
-                <span class="text-[10px] text-emerald-400">● MongoDB Atlas Aktif</span>
+                <span class="text-[10px] text-emerald-400">● Cloudflare & MongoDB</span>
             </div>
         </aside>
 
@@ -151,16 +151,37 @@
         </div>
     </div>
 
-    <!-- ACCOUNT CREATION MODAL -->
+    <!-- AUTHENTICATION MODAL (LOGIN / REGISTER) -->
     <div id="accountModal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-8 shadow-2xl relative">
             <div class="text-center space-y-2 mb-6">
                 <div class="w-14 h-14 bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 rounded-2xl flex items-center justify-center mx-auto text-2xl font-bold">BP</div>
-                <h2 class="text-2xl font-bold text-white">BytePost Hesabı Oluştur</h2>
-                <p class="text-xs text-slate-400">Verileriniz MongoDB Bulut sunucusunda saklanır.</p>
+                <h2 id="authModalTitle" class="text-2xl font-bold text-white">BytePost Giriş Yap</h2>
+                <p id="authModalDesc" class="text-xs text-slate-400">Hesabınıza giriş yaparak postalarınızı yönetin.</p>
             </div>
 
-            <form onsubmit="handleCreateAccount(event)" class="space-y-4">
+            <!-- LOGIN FORM -->
+            <form id="loginForm" onsubmit="handleLoginAccount(event)" class="space-y-4">
+                <div>
+                    <label class="text-xs font-semibold text-slate-300 block mb-1">Kullanıcı Adı veya Mail*</label>
+                    <input type="text" id="loginUser" required placeholder="kullanici veya kullanici@byte.post" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-slate-300 block mb-1">Şifre*</label>
+                    <input type="password" id="loginPassword" required placeholder="••••••••" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-indigo-600/30 text-sm">
+                    Giriş Yap
+                </button>
+                <div class="text-center pt-2">
+                    <button type="button" onclick="toggleAuthMode('register')" class="text-xs text-indigo-400 hover:underline">
+                        Hesabın yok mu? Yeni Hesap Oluştur
+                    </button>
+                </div>
+            </form>
+
+            <!-- REGISTER FORM -->
+            <form id="registerForm" onsubmit="handleCreateAccount(event)" class="space-y-4 hidden">
                 <div>
                     <label class="text-xs font-semibold text-slate-300 block mb-1">Mail Adresi*</label>
                     <div class="relative flex items-center">
@@ -174,15 +195,20 @@
                     <input type="password" id="regPassword" required placeholder="••••••••" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
                 </div>
                 <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-indigo-600/30 text-sm">
-                    Hesabı Oluştur ve Giriş Yap
+                    Hesabı Oluştur
                 </button>
+                <div class="text-center pt-2">
+                    <button type="button" onclick="toggleAuthMode('login')" class="text-xs text-indigo-400 hover:underline">
+                        Zaten hesabın var mı? Giriş Yap
+                    </button>
+                </div>
             </form>
         </div>
     </div>
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
-        const CURRENT_USER_KEY = 'bytepost_current_user_cloud';
+        const CURRENT_USER_KEY = 'bytepost_active_session';
         let activeTab = 'inbox';
         let cachedMails = { inbox: [], sent: [] };
 
@@ -191,17 +217,18 @@
         };
 
         function getCurrentUser() {
-            return JSON.parse(localStorage.getItem(CURRENT_USER_KEY) || 'null');
+            return JSON.parse(sessionStorage.getItem(CURRENT_USER_KEY) || 'null');
         }
 
         function setCurrentUser(user) {
-            localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+            sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
         }
 
         async function initSystem() {
             const currentUser = getCurrentUser();
             if (!currentUser) {
                 document.getElementById('accountModal').classList.remove('hidden');
+                toggleAuthMode('login');
             } else {
                 document.getElementById('accountModal').classList.add('hidden');
                 updateUserHeader(currentUser);
@@ -209,19 +236,74 @@
             }
         }
 
+        function toggleAuthMode(mode) {
+            const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
+            const title = document.getElementById('authModalTitle');
+            const desc = document.getElementById('authModalDesc');
+
+            if (mode === 'register') {
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+                title.innerText = 'BytePost Hesabı Oluştur';
+                desc.innerText = 'Yeni bir e-posta adresi alarak hemen başlayın.';
+            } else {
+                registerForm.classList.add('hidden');
+                loginForm.classList.remove('hidden');
+                title.innerText = 'BytePost Giriş Yap';
+                desc.innerText = 'Hesabınıza giriş yaparak postalarınızı yönetin.';
+            }
+        }
+
         function updateUserHeader(user) {
             document.getElementById('userHeaderProfile').innerHTML = `
                 <div class="text-right hidden sm:block">
                     <div class="text-xs font-bold text-slate-200">${user.email}</div>
-                    <div class="text-[10px] text-emerald-400">● MongoDB Bağlı</div>
+                    <div class="text-[10px] text-emerald-400">● Cloudflare & MongoDB</div>
                 </div>
                 <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white shadow-md">
                     ${user.username.charAt(0).toUpperCase()}
                 </div>
+                <button onclick="handleLogout()" title="Çıkış Yap" class="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl transition">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
             `;
         }
 
-        // Account Registration
+        function handleLogout() {
+            sessionStorage.removeItem(CURRENT_USER_KEY);
+            location.reload();
+        }
+
+        // Login Handler
+        async function handleLoginAccount(e) {
+            e.preventDefault();
+            const username = document.getElementById('loginUser').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const res = await fetch(`${API_URL}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+
+                if (!res.ok || !data.success) {
+                    alert(data.message || "Giriş başarısız oldu.");
+                    return;
+                }
+
+                setCurrentUser(data.user);
+                document.getElementById('accountModal').classList.add('hidden');
+                updateUserHeader(data.user);
+                await loadMailsFromDB();
+            } catch (err) {
+                alert("Bağlantı hatası: " + err.message);
+            }
+        }
+
+        // Register Handler
         async function handleCreateAccount(e) {
             e.preventDefault();
             const rawName = document.getElementById('regMailName').value.trim();
@@ -241,7 +323,7 @@
                 });
                 const data = await res.json();
 
-                if (!res.ok) {
+                if (!res.ok || !data.success) {
                     alert(data.message || "Kayıt başarısız oldu.");
                     return;
                 }
@@ -249,14 +331,14 @@
                 setCurrentUser(data.user);
                 document.getElementById('accountModal').classList.add('hidden');
                 updateUserHeader(data.user);
-                alert(`Tebrikler! ${data.user.email} adresiniz MongoDB'ye kaydedildi.`);
+                alert(`Tebrikler! ${data.user.email} adresiniz oluşturuldu.`);
                 await loadMailsFromDB();
             } catch (err) {
                 alert("Bağlantı hatası: " + err.message);
             }
         }
 
-        // Fetch Mails from MongoDB via Worker
+        // Fetch Mails from Worker API
         async function loadMailsFromDB() {
             const currentUser = getCurrentUser();
             if (!currentUser) return;
@@ -420,8 +502,8 @@
                 });
                 const data = await res.json();
 
-                if (!res.ok) {
-                    alert(data.message || "Mail gönderilemedi.");
+                if (!res.ok || !data.success) {
+                    alert(data.message || "Mail Gönderilemedi.");
                     return;
                 }
 
@@ -432,7 +514,7 @@
                 document.getElementById('composeBtnLink').value = '';
 
                 closeComposeModal();
-                alert("Mail başarıyla gönderildi ve MongoDB'ye kaydedildi!");
+                alert("Mail Başarıyla Gönderildi!");
                 await loadMailsFromDB();
             } catch (err) {
                 alert("Hata: " + err.message);
