@@ -9,14 +9,17 @@
 </head>
 <body class="bg-[#0f172a] text-slate-100 font-sans h-screen flex flex-col overflow-hidden select-none">
 
-    <!-- Cloudflare Worker API URL -->
     <script>
         const API_URL = 'https://bytepost-api.ugurqeribli1.workers.dev'; 
     </script>
 
     <!-- Top Navigation -->
-    <header class="h-16 border-b border-slate-800 bg-[#1e293b]/50 backdrop-blur px-4 flex items-center justify-between shrink-0">
-        <div class="flex items-center space-x-4">
+    <header class="h-16 border-b border-slate-800 bg-[#1e293b]/50 backdrop-blur px-4 flex items-center justify-between shrink-0 relative z-50">
+        <div class="flex items-center space-x-3">
+            <!-- Mobil/Tablet Menü Butonu -->
+            <button onclick="toggleMobileMenu()" class="md:hidden text-slate-400 hover:text-white transition p-1">
+                <i class="fa-solid fa-bars text-xl"></i>
+            </button>
             <div class="flex items-center space-x-2">
                 <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center font-black text-xl text-white shadow-lg shadow-indigo-500/30">
                     BP
@@ -36,16 +39,26 @@
     </header>
 
     <!-- Main Workspace -->
-    <div class="flex flex-1 overflow-hidden relative">
-        <aside class="w-64 bg-[#1e293b]/30 border-r border-slate-800/80 p-4 flex flex-col justify-between shrink-0">
+    <div class="flex flex-1 overflow-hidden relative w-full">
+        
+        <!-- Mobil Menü Açıldığında Arka Planı Karart -->
+        <div id="mobileBackdrop" onclick="toggleMobileMenu(true)" class="hidden absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-30 md:hidden"></div>
+
+        <!-- Sidebar (Mobil için Drawer yapıldı) -->
+        <aside id="sidebarMenu" class="absolute md:relative z-40 inset-y-0 left-0 transform -translate-x-full md:translate-x-0 transition-transform duration-300 w-64 bg-[#1e293b] md:bg-[#1e293b]/30 border-r border-slate-800/80 p-4 flex flex-col justify-between shrink-0 h-full">
             <div class="space-y-4">
-                <button onclick="openComposeModal()" class="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold py-3 px-5 rounded-2xl transition shadow-lg shadow-indigo-600/25 flex items-center justify-center space-x-3">
+                <div class="flex items-center justify-between md:hidden pb-2 border-b border-slate-800">
+                    <span class="font-bold text-sm text-slate-300">Menü</span>
+                    <button onclick="toggleMobileMenu(true)" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+
+                <button onclick="openComposeModal(); toggleMobileMenu(true);" class="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold py-3 px-5 rounded-2xl transition shadow-lg shadow-indigo-600/25 flex items-center justify-center space-x-3">
                     <i class="fa-solid fa-pen text-sm"></i>
                     <span>Yeni İleti</span>
                 </button>
 
                 <nav class="space-y-1">
-                    <button onclick="switchTab('inbox')" id="tab-inbox" class="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-indigo-600/15 text-indigo-400 font-medium text-sm transition">
+                    <button onclick="switchTab('inbox'); toggleMobileMenu(true);" id="tab-inbox" class="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-indigo-600/15 text-indigo-400 font-medium text-sm transition">
                         <div class="flex items-center space-x-3">
                             <i class="fa-solid fa-inbox text-base"></i>
                             <span>Gelen Kutusu</span>
@@ -53,7 +66,7 @@
                         <span id="inboxCount" class="bg-indigo-600 text-white text-xs px-2 py-0.5 rounded-full font-bold">0</span>
                     </button>
 
-                    <button onclick="switchTab('sent')" id="tab-sent" class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 font-medium text-sm transition">
+                    <button onclick="switchTab('sent'); toggleMobileMenu(true);" id="tab-sent" class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 font-medium text-sm transition">
                         <div class="flex items-center space-x-3">
                             <i class="fa-solid fa-paper-plane text-base"></i>
                             <span>Gönderilenler</span>
@@ -66,11 +79,12 @@
             <div class="border-t border-slate-800/60 pt-4 text-xs text-slate-500 flex flex-col space-y-1">
                 <span class="font-semibold text-slate-400">BytePost Cloud</span>
                 <span>Domain: @byte.post</span>
-                <span class="text-[10px] text-emerald-400">● Cloudflare & MongoDB</span>
+                <span class="text-[10px] text-emerald-400">● Cloudflare & KV Storage</span>
             </div>
         </aside>
 
-        <main class="flex-1 flex flex-col bg-[#0f172a] overflow-hidden relative">
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col bg-[#0f172a] overflow-hidden relative w-full">
             <div id="mailListView" class="flex-1 flex flex-col overflow-y-auto p-4 space-y-2">
                 <div class="flex items-center justify-between pb-2 border-b border-slate-800 px-2">
                     <h2 id="currentTabTitle" class="text-lg font-bold text-slate-200">Gelen Kutusu</h2>
@@ -83,30 +97,30 @@
             </div>
 
             <!-- Mail Detail View -->
-            <div id="mailDetailView" class="hidden absolute inset-0 bg-[#0f172a] p-6 flex-col overflow-y-auto z-10">
-                <div class="flex items-center space-x-4 mb-6 border-b border-slate-800 pb-4">
+            <div id="mailDetailView" class="hidden absolute inset-0 bg-[#0f172a] p-4 sm:p-6 flex-col overflow-y-auto z-10 w-full">
+                <div class="flex items-center space-x-4 mb-4 sm:mb-6 border-b border-slate-800 pb-4">
                     <button onclick="closeMailDetail()" class="p-2 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition">
                         <i class="fa-solid fa-arrow-left text-lg"></i>
                     </button>
-                    <h2 id="detailSubject" class="text-xl font-bold text-white flex-1 truncate">Mail Başlığı</h2>
+                    <h2 id="detailSubject" class="text-lg sm:text-xl font-bold text-white flex-1 truncate">Mail Başlığı</h2>
                 </div>
 
-                <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 space-y-6">
+                <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 sm:p-6 space-y-6">
                     <div class="flex items-start justify-between border-b border-slate-800/80 pb-4">
                         <div class="flex items-center space-x-3">
-                            <div id="detailAvatar" class="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center font-bold text-lg text-white shadow-md">U</div>
-                            <div>
-                                <h3 id="detailSender" class="font-bold text-slate-100">sender@byte.post</h3>
-                                <p id="detailRecipient" class="text-xs text-slate-400">Kime: receiver@byte.post</p>
+                            <div id="detailAvatar" class="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-indigo-600 flex items-center justify-center font-bold text-lg text-white shadow-md">U</div>
+                            <div class="truncate pr-2">
+                                <h3 id="detailSender" class="font-bold text-slate-100 text-sm sm:text-base truncate">sender@byte.post</h3>
+                                <p id="detailRecipient" class="text-xs text-slate-400 truncate">Kime: receiver@byte.post</p>
                             </div>
                         </div>
-                        <span id="detailDate" class="text-xs text-slate-500 font-medium">12:00</span>
+                        <span id="detailDate" class="text-[10px] sm:text-xs text-slate-500 font-medium shrink-0">12:00</span>
                     </div>
 
                     <div id="detailBody" class="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap py-2 min-h-[120px]"></div>
 
                     <div id="detailButtonContainer" class="hidden pt-4 border-t border-slate-800/80">
-                        <a id="detailActionBtn" href="#" target="_blank" class="inline-flex items-center space-x-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold px-6 py-3 rounded-xl transition shadow-lg shadow-indigo-600/30">
+                        <a id="detailActionBtn" href="#" target="_blank" class="inline-flex items-center space-x-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold px-4 py-2 sm:px-6 sm:py-3 rounded-xl transition shadow-lg shadow-indigo-600/30 text-sm">
                             <span id="detailBtnText">Buton İsmi</span>
                             <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
                         </a>
@@ -116,8 +130,8 @@
         </main>
     </div>
 
-    <!-- COMPOSE MODAL -->
-    <div id="composeModal" class="hidden fixed bottom-4 right-4 w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col">
+    <!-- COMPOSE MODAL (Mobil için ekranın altından çıkar) -->
+    <div id="composeModal" class="hidden fixed bottom-0 right-0 w-full sm:bottom-4 sm:right-4 sm:max-w-lg bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col">
         <div class="bg-slate-800/80 px-4 py-3 flex justify-between items-center border-b border-slate-700/50">
             <span class="font-bold text-sm text-slate-200">Yeni İleti Oluştur</span>
             <button onclick="closeComposeModal()" class="text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark text-base"></i></button>
@@ -151,12 +165,12 @@
         </div>
     </div>
 
-    <!-- AUTHENTICATION MODAL (LOGIN / REGISTER) -->
+    <!-- AUTHENTICATION MODAL -->
     <div id="accountModal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
-        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-8 shadow-2xl relative">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-2xl relative">
             <div class="text-center space-y-2 mb-6">
                 <div class="w-14 h-14 bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 rounded-2xl flex items-center justify-center mx-auto text-2xl font-bold">BP</div>
-                <h2 id="authModalTitle" class="text-2xl font-bold text-white">BytePost Giriş Yap</h2>
+                <h2 id="authModalTitle" class="text-xl sm:text-2xl font-bold text-white">BytePost Giriş Yap</h2>
                 <p id="authModalDesc" class="text-xs text-slate-400">Hesabınıza giriş yaparak postalarınızı yönetin.</p>
             </div>
 
@@ -216,13 +230,22 @@
             initSystem();
         };
 
-        function getCurrentUser() {
-            return JSON.parse(sessionStorage.getItem(CURRENT_USER_KEY) || 'null');
+        // Mobil Menü Aç/Kapat
+        function toggleMobileMenu(forceClose = false) {
+            const sidebar = document.getElementById('sidebarMenu');
+            const backdrop = document.getElementById('mobileBackdrop');
+            
+            if (forceClose || !sidebar.classList.contains('-translate-x-full')) {
+                sidebar.classList.add('-translate-x-full');
+                backdrop.classList.add('hidden');
+            } else {
+                sidebar.classList.remove('-translate-x-full');
+                backdrop.classList.remove('hidden');
+            }
         }
 
-        function setCurrentUser(user) {
-            sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-        }
+        function getCurrentUser() { return JSON.parse(sessionStorage.getItem(CURRENT_USER_KEY) || 'null'); }
+        function setCurrentUser(user) { sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user)); }
 
         async function initSystem() {
             const currentUser = getCurrentUser();
@@ -259,7 +282,7 @@
             document.getElementById('userHeaderProfile').innerHTML = `
                 <div class="text-right hidden sm:block">
                     <div class="text-xs font-bold text-slate-200">${user.email}</div>
-                    <div class="text-[10px] text-emerald-400">● Cloudflare & MongoDB</div>
+                    <div class="text-[10px] text-emerald-400">● Cloudflare KV Storage</div>
                 </div>
                 <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white shadow-md">
                     ${user.username.charAt(0).toUpperCase()}
@@ -275,7 +298,6 @@
             location.reload();
         }
 
-        // Login Handler
         async function handleLoginAccount(e) {
             e.preventDefault();
             const username = document.getElementById('loginUser').value.trim();
@@ -298,20 +320,17 @@
                 document.getElementById('accountModal').classList.add('hidden');
                 updateUserHeader(data.user);
                 await loadMailsFromDB();
-            } catch (err) {
-                alert("Bağlantı hatası: " + err.message);
-            }
+            } catch (err) { alert("Bağlantı hatası: " + err.message); }
         }
 
-        // Register Handler
         async function handleCreateAccount(e) {
             e.preventDefault();
             const rawName = document.getElementById('regMailName').value.trim();
             const password = document.getElementById('regPassword').value;
-
             const mailRegex = /^[a-z0-9_.]+$/;
+            
             if (!mailRegex.test(rawName)) {
-                alert("Hata: Mail isminde sadece küçük İngilizce harfler (a-z), 0-9, '_' ve '.' kullanılabilir!");
+                alert("Hata: Sadece küçük harf (a-z), 0-9, '_' ve '.' kullanılabilir!");
                 return;
             }
 
@@ -331,14 +350,11 @@
                 setCurrentUser(data.user);
                 document.getElementById('accountModal').classList.add('hidden');
                 updateUserHeader(data.user);
-                alert(`Tebrikler! ${data.user.email} adresiniz oluşturuldu.`);
+                alert(`Tebrikler! ${data.user.email} oluşturuldu.`);
                 await loadMailsFromDB();
-            } catch (err) {
-                alert("Bağlantı hatası: " + err.message);
-            }
+            } catch (err) { alert("Bağlantı hatası: " + err.message); }
         }
 
-        // Fetch Mails from Worker API
         async function loadMailsFromDB() {
             const currentUser = getCurrentUser();
             if (!currentUser) return;
@@ -352,9 +368,7 @@
                     cachedMails.sent = data.sent;
                     renderMailList();
                 }
-            } catch (err) {
-                console.error("Mailler yüklenemedi:", err);
-            }
+            } catch (err) { console.error("Mailler yüklenemedi:", err); }
         }
 
         function switchTab(tab) {
@@ -410,15 +424,15 @@
 
             mails.forEach(mail => {
                 const mailCard = document.createElement('div');
-                mailCard.className = "bg-slate-900/70 border border-slate-800/80 hover:border-indigo-500/50 p-4 rounded-2xl cursor-pointer transition flex items-center justify-between group";
+                mailCard.className = "bg-slate-900/70 border border-slate-800/80 hover:border-indigo-500/50 p-3 sm:p-4 rounded-2xl cursor-pointer transition flex items-center justify-between group";
                 mailCard.onclick = () => openMailDetail(mail);
 
                 const displayAddress = activeTab === 'inbox' ? mail.from : `Kime: ${mail.to}`;
                 const initial = displayAddress.charAt(0).toUpperCase();
 
                 mailCard.innerHTML = `
-                    <div class="flex items-center space-x-4 flex-1 truncate pr-4">
-                        <div class="w-10 h-10 rounded-xl bg-slate-800 group-hover:bg-indigo-600 flex items-center justify-center font-bold text-indigo-400 group-hover:text-white transition shrink-0">
+                    <div class="flex items-center space-x-3 sm:space-x-4 flex-1 truncate pr-2 sm:pr-4">
+                        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-800 group-hover:bg-indigo-600 flex items-center justify-center font-bold text-indigo-400 group-hover:text-white transition shrink-0">
                             ${initial}
                         </div>
                         <div class="truncate flex-1">
@@ -431,7 +445,7 @@
                             </p>
                         </div>
                     </div>
-                    <span class="text-[11px] text-slate-500 shrink-0 font-medium">${formatDate(mail.date)}</span>
+                    <span class="text-[10px] sm:text-[11px] text-slate-500 shrink-0 font-medium">${formatDate(mail.date)}</span>
                 `;
                 container.appendChild(mailCard);
             });
@@ -453,9 +467,7 @@
                 btnContainer.classList.remove('hidden');
                 document.getElementById('detailBtnText').innerText = mail.btnName;
                 document.getElementById('detailActionBtn').href = mail.btnLink;
-            } else {
-                btnContainer.classList.add('hidden');
-            }
+            } else { btnContainer.classList.add('hidden'); }
         }
 
         function closeMailDetail() {
@@ -466,7 +478,6 @@
         function openComposeModal() { document.getElementById('composeModal').classList.remove('hidden'); }
         function closeComposeModal() { document.getElementById('composeModal').classList.add('hidden'); }
 
-        // Send Mail
         async function handleSendMail() {
             const currentUser = getCurrentUser();
             if (!currentUser) return;
@@ -516,9 +527,7 @@
                 closeComposeModal();
                 alert("Mail Başarıyla Gönderildi!");
                 await loadMailsFromDB();
-            } catch (err) {
-                alert("Hata: " + err.message);
-            }
+            } catch (err) { alert("Hata: " + err.message); }
         }
 
         function formatDate(isoString) {
