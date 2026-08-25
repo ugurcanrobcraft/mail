@@ -6,6 +6,10 @@
     <title>BytePost - WebMail Platformu</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .matched-item { opacity: 0.3; pointer-events: none; filter: grayscale(100%); transition: all 0.3s; }
+        .selected-card { border-color: #6366f1 !important; background-color: rgba(99, 102, 241, 0.2) !important; }
+    </style>
 </head>
 <body class="bg-[#0f172a] text-slate-100 font-sans h-screen flex flex-col overflow-hidden select-none">
 
@@ -14,9 +18,8 @@
     </script>
 
     <!-- Top Navigation -->
-    <header class="h-16 border-b border-slate-800 bg-[#1e293b]/50 backdrop-blur px-4 flex items-center justify-between shrink-0 relative z-50">
+    <header class="h-16 border-b border-slate-800 bg-[#1e293b]/50 backdrop-blur px-4 flex items-center justify-between shrink-0 relative z-40">
         <div class="flex items-center space-x-3">
-            <!-- Mobil/Tablet Menü Butonu (Hamburger) -->
             <button onclick="toggleMobileMenu()" class="md:hidden text-slate-400 hover:text-white transition p-2 bg-slate-800/50 rounded-lg">
                 <i class="fa-solid fa-bars text-xl"></i>
             </button>
@@ -40,14 +43,11 @@
 
     <!-- Main Workspace -->
     <div class="flex flex-1 overflow-hidden relative w-full">
-        
-        <!-- Mobil Menü Açıldığında Arka Planı Karart (Tıklayınca Kapanır) -->
         <div id="mobileBackdrop" onclick="toggleMobileMenu(true)" class="hidden absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-30 md:hidden transition-opacity"></div>
 
-        <!-- Sidebar (Mobil için Drawer, PC için Sabit) -->
+        <!-- Sidebar -->
         <aside id="sidebarMenu" class="absolute md:relative z-40 inset-y-0 left-0 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out w-64 bg-[#1e293b] md:bg-[#1e293b]/30 border-r border-slate-800/80 p-4 flex flex-col justify-between shrink-0 h-full">
             <div class="space-y-4">
-                <!-- Sadece mobilde görünen panel kapatma başlığı -->
                 <div class="flex items-center justify-between md:hidden pb-2 border-b border-slate-800">
                     <span class="font-bold text-sm text-slate-300">Menü</span>
                     <button onclick="toggleMobileMenu(true)" class="text-slate-400 hover:text-white p-1">
@@ -117,7 +117,10 @@
                                 <p id="detailRecipient" class="text-xs text-slate-400 truncate">Kime: receiver@byte.post</p>
                             </div>
                         </div>
-                        <span id="detailDate" class="text-[10px] sm:text-xs text-slate-500 font-medium shrink-0">12:00</span>
+                        <div class="flex flex-col items-end space-y-1">
+                            <span id="detailDate" class="text-[10px] sm:text-xs text-slate-500 font-medium">12:00</span>
+                            <span id="detailTickStatus" class="text-xs font-bold"></span>
+                        </div>
                     </div>
 
                     <div id="detailBody" class="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap py-2 min-h-[120px]"></div>
@@ -131,6 +134,44 @@
                 </div>
             </div>
         </main>
+    </div>
+
+    <!-- OYUN 1 MODAL: POSTA EŞLEŞTİRME (/BYTEPOSTMAIL) -->
+    <div id="game1Modal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex flex-col p-4 sm:p-6">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+            <button onclick="closeGames()" class="text-red-400 hover:text-red-300 text-xl font-bold flex items-center space-x-2 bg-red-500/10 px-3 py-1.5 rounded-xl border border-red-500/20">
+                <span>❌</span> <span class="text-sm font-semibold">Çık</span>
+            </button>
+            <h3 class="text-base sm:text-lg font-bold text-indigo-400">Posta Eşleştirme Oyunu</h3>
+            <div class="bg-amber-500/10 border border-amber-500/30 text-amber-400 px-3 py-1 rounded-xl text-sm font-mono font-bold">
+                ⏱️ <span id="game1Timer">30</span>s
+            </div>
+        </div>
+        <p class="text-xs text-slate-400 text-center py-2">Maillere (📨) dokun ardından doğru alıcı ismine (🏷️) dokunarak eşleştir!</p>
+        <div class="flex-1 grid grid-cols-2 gap-4 my-auto max-w-2xl mx-auto w-full overflow-y-auto py-2">
+            <div id="game1Mails" class="space-y-3"></div>
+            <div id="game1Tags" class="space-y-3"></div>
+        </div>
+    </div>
+
+    <!-- OYUN 2 MODAL: GMAIL DÜZENLEME (/BYTEPOSTBUG) -->
+    <div id="game2Modal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex flex-col p-4 sm:p-6">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+            <button onclick="closeGames()" class="text-red-400 hover:text-red-300 text-xl font-bold flex items-center space-x-2 bg-red-500/10 px-3 py-1.5 rounded-xl border border-red-500/20">
+                <span>❌</span> <span class="text-sm font-semibold">Çık</span>
+            </button>
+            <h3 class="text-base sm:text-lg font-bold text-indigo-400">Mail Hata Ayıklama Oyunu</h3>
+            <div class="bg-amber-500/10 border border-amber-500/30 text-amber-400 px-3 py-1 rounded-xl text-sm font-mono font-bold">
+                ⏱️ <span id="game2Timer">30</span>s
+            </div>
+        </div>
+        <div class="max-w-md mx-auto w-full my-auto space-y-4">
+            <p class="text-xs text-slate-400 text-center">Kurallar: Sonu <strong>@byte.post</strong> olmalı. Sadece küçük harf, rakam ve alt tire ( <strong>_</strong> ) içerebilir!</p>
+            <div id="game2Inputs" class="space-y-3"></div>
+            <button onclick="checkGame2Submit()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-emerald-600/30 text-sm">
+                Hataları Fixle (Kontrol Et)
+            </button>
+        </div>
     </div>
 
     <!-- COMPOSE MODAL -->
@@ -229,21 +270,24 @@
         let activeTab = 'inbox';
         let cachedMails = { inbox: [], sent: [] };
 
+        // --- 150 BİRİMLİK HAVUZLAR ---
+        const NAMES_POOL = Array.from({length: 150}, (_, i) => `User_${i + 1}`);
+        const BUGS_POOL = Array.from({length: 150}, (_, i) => {
+            const badFormats = [`User#${i}!`, `Test Mail ${i}`, `ERR_${i}@gmail.com`, `HATALI_${i}`, `BAD-USER-${i}`];
+            return badFormats[i % badFormats.length];
+        });
+
         window.onload = function() {
             initSystem();
         };
 
-        // Mobil Menü Aç/Kapat Mantığı
         function toggleMobileMenu(forceClose = false) {
             const sidebar = document.getElementById('sidebarMenu');
             const backdrop = document.getElementById('mobileBackdrop');
-            
             if (forceClose || !sidebar.classList.contains('-translate-x-full')) {
-                // Menüyü kapat
                 sidebar.classList.add('-translate-x-full');
                 backdrop.classList.add('hidden');
             } else {
-                // Menüyü aç
                 sidebar.classList.remove('-translate-x-full');
                 backdrop.classList.remove('hidden');
             }
@@ -369,8 +413,8 @@
                 const data = await res.json();
 
                 if (data.success) {
-                    cachedMails.inbox = data.inbox;
-                    cachedMails.sent = data.sent;
+                    cachedMails.inbox = data.inbox.map(m => ({ ...m, read: m.read || false }));
+                    cachedMails.sent = data.sent.map(m => ({ ...m, read: m.read || false }));
                     renderMailList();
                 }
             } catch (err) { console.error("Mailler yüklenemedi:", err); }
@@ -435,6 +479,11 @@
                 const displayAddress = activeTab === 'inbox' ? mail.from : `Kime: ${mail.to}`;
                 const initial = displayAddress.charAt(0).toUpperCase();
 
+                // OKUNDU / ULAŞTI TİKLERİ (Mavi / Gri ✔✔)
+                const tickClass = mail.read ? 'text-sky-400' : 'text-slate-500';
+                const tickTitle = mail.read ? 'Görüldü' : 'Ulaştı';
+                const tickHTML = `<span class="${tickClass} text-xs font-mono font-bold tracking-tighter ml-1" title="${tickTitle}">✔✔</span>`;
+
                 mailCard.innerHTML = `
                     <div class="flex items-center space-x-3 sm:space-x-4 flex-1 truncate pr-2 sm:pr-4">
                         <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-800 group-hover:bg-indigo-600 flex items-center justify-center font-bold text-indigo-400 group-hover:text-white transition shrink-0">
@@ -450,13 +499,20 @@
                             </p>
                         </div>
                     </div>
-                    <span class="text-[10px] sm:text-[11px] text-slate-500 shrink-0 font-medium">${formatDate(mail.date)}</span>
+                    <div class="flex items-center space-x-1 shrink-0">
+                        <span class="text-[10px] sm:text-[11px] text-slate-500 font-medium">${formatDate(mail.date)}</span>
+                        ${tickHTML}
+                    </div>
                 `;
                 container.appendChild(mailCard);
             });
         }
 
         function openMailDetail(mail) {
+            // Mail okundu olarak güncellenir
+            mail.read = true;
+            renderMailList();
+
             document.getElementById('mailDetailView').classList.remove('hidden');
             document.getElementById('mailDetailView').classList.add('flex');
 
@@ -467,12 +523,26 @@
             document.getElementById('detailBody').innerText = mail.body;
             document.getElementById('detailAvatar').innerText = mail.from.charAt(0).toUpperCase();
 
+            // Detay ekranındaki mavi tık durumu
+            document.getElementById('detailTickStatus').innerHTML = `<span class="text-sky-400 font-mono">✔✔ Görüldü</span>`;
+
             const btnContainer = document.getElementById('detailButtonContainer');
             if (mail.btnName && mail.btnLink) {
                 btnContainer.classList.remove('hidden');
                 document.getElementById('detailBtnText').innerText = mail.btnName;
                 document.getElementById('detailActionBtn').href = mail.btnLink;
             } else { btnContainer.classList.add('hidden'); }
+
+            // GİZLİ OYUN KONTROLÜ (Kendine Mail & Özel Kod)
+            const currentUser = getCurrentUser();
+            if (currentUser && mail.from === currentUser.email && mail.to === currentUser.email) {
+                const bodyText = mail.body.trim();
+                if (bodyText === '/BYTEPOSTMAIL') {
+                    startPostaGame();
+                } else if (bodyText === '/BYTEPOSTBUG') {
+                    startBugGame();
+                }
+            }
         }
 
         function closeMailDetail() {
@@ -538,6 +608,138 @@
         function formatDate(isoString) {
             const d = new Date(isoString);
             return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' - ' + d.toLocaleDateString();
+        }
+
+        // --- RETRO OYUNLAR MOTORU ---
+        let gameTimerInterval = null;
+        let gameTimeLeft = 30;
+
+        function closeGames() {
+            document.getElementById('game1Modal').classList.add('hidden');
+            document.getElementById('game2Modal').classList.add('hidden');
+            if (gameTimerInterval) clearInterval(gameTimerInterval);
+        }
+
+        function runTimer(timerElementId) {
+            gameTimeLeft = 30;
+            document.getElementById(timerElementId).innerText = gameTimeLeft;
+            if (gameTimerInterval) clearInterval(gameTimerInterval);
+
+            gameTimerInterval = setInterval(() => {
+                gameTimeLeft--;
+                document.getElementById(timerElementId).innerText = gameTimeLeft;
+                if (gameTimeLeft <= 0) {
+                    clearInterval(gameTimerInterval);
+                    alert("Süre Doldu! Kaybettin ⏱️");
+                    closeGames();
+                }
+            }, 1000);
+        }
+
+        function triggerWin() {
+            clearInterval(gameTimerInterval);
+            setTimeout(() => {
+                alert(`Tebrikler! Oyunu Kazandın 🎉 Kalan Süre: ${gameTimeLeft}s`);
+                closeGames();
+            }, 100);
+        }
+
+        // OYUN 1: POSTA EŞLEŞTİRME (/BYTEPOSTMAIL)
+        let selectedMailCard = null;
+        let remainingMatches = 5;
+
+        function startPostaGame() {
+            document.getElementById('game1Modal').classList.remove('hidden');
+            remainingMatches = 5;
+            selectedMailCard = null;
+
+            // 150 kişiden rastgele 5 isim seç
+            const shuffledPool = [...NAMES_POOL].sort(() => 0.5 - Math.random()).slice(0, 5);
+            const rightPool = [...shuffledPool].sort(() => 0.5 - Math.random());
+
+            const mailsContainer = document.getElementById('game1Mails');
+            const tagsContainer = document.getElementById('game1Tags');
+            mailsContainer.innerHTML = '';
+            tagsContainer.innerHTML = '';
+
+            shuffledPool.forEach(name => {
+                const card = document.createElement('div');
+                card.className = "bg-slate-900 border border-slate-700 p-3 rounded-xl cursor-pointer text-center text-sm font-semibold hover:border-indigo-500 transition select-none flex items-center justify-center space-x-2";
+                card.innerHTML = `<span>📨</span><span>${name}</span>`;
+                card.onclick = () => selectMailCard(card, name);
+                mailsContainer.appendChild(card);
+            });
+
+            rightPool.forEach(name => {
+                const card = document.createElement('div');
+                card.className = "bg-slate-900 border border-slate-700 p-3 rounded-xl cursor-pointer text-center text-sm font-semibold hover:border-indigo-500 transition select-none flex items-center justify-center space-x-2";
+                card.innerHTML = `<span>🏷️</span><span>${name}</span>`;
+                card.onclick = () => selectTagCard(card, name);
+                tagsContainer.appendChild(card);
+            });
+
+            runTimer('game1Timer');
+        }
+
+        function selectMailCard(card, name) {
+            document.querySelectorAll('#game1Mails > div').forEach(el => el.classList.remove('selected-card'));
+            card.classList.add('selected-card');
+            selectedMailCard = { card, name };
+        }
+
+        function selectTagCard(tagCard, name) {
+            if (!selectedMailCard) return;
+
+            if (selectedMailCard.name === name) {
+                selectedMailCard.card.classList.add('matched-item');
+                tagCard.classList.add('matched-item');
+                selectedMailCard = null;
+                remainingMatches--;
+                if (remainingMatches === 0) triggerWin();
+            } else {
+                selectedMailCard.card.classList.remove('selected-card');
+                selectedMailCard = null;
+            }
+        }
+
+        // OYUN 2: GMAIL DÜZENLEME (/BYTEPOSTBUG)
+        function startBugGame() {
+            document.getElementById('game2Modal').classList.remove('hidden');
+            const inputsContainer = document.getElementById('game2Inputs');
+            inputsContainer.innerHTML = '';
+
+            // 150 hatalı mailden rastgele 3 tanesini çek
+            const buggySamples = [...BUGS_POOL].sort(() => 0.5 - Math.random()).slice(0, 3);
+
+            buggySamples.forEach((bugStr, idx) => {
+                inputsContainer.innerHTML += `
+                    <div>
+                        <label class="text-[11px] font-semibold text-slate-400 block mb-1">Hatalı Mail #${idx + 1}</label>
+                        <input type="text" id="bugInput_${idx}" value="${bugStr}" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-mono text-slate-100 focus:outline-none focus:border-indigo-500">
+                    </div>
+                `;
+            });
+
+            runTimer('game2Timer');
+        }
+
+        function checkGame2Submit() {
+            const validRegex = /^[a-z0-9_]+@byte\.post$/;
+            let isAllPassed = true;
+
+            for (let i = 0; i < 3; i++) {
+                const inputEl = document.getElementById(`bugInput_${i}`);
+                const val = inputEl.value.trim();
+
+                if (validRegex.test(val)) {
+                    inputEl.className = "w-full bg-slate-900 border border-emerald-500 rounded-xl px-3.5 py-2.5 text-sm font-mono text-emerald-400 focus:outline-none";
+                } else {
+                    inputEl.className = "w-full bg-slate-900 border border-red-500 rounded-xl px-3.5 py-2.5 text-sm font-mono text-red-400 focus:outline-none";
+                    isAllPassed = false;
+                }
+            }
+
+            if (isAllPassed) triggerWin();
         }
     </script>
 </body>
